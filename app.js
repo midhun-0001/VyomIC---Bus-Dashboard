@@ -550,11 +550,19 @@ const APP = {
     var local = null;
     try { var raw = localStorage.getItem("satbus_crm"); if (raw) local = JSON.parse(raw); } catch (_) {}
     if (local && local.length) {
-      // Merge: local overrides sheet by ID, sheet-only entries are kept
+      // Merge: local overrides sheet by ID, then deduplicate by company+date
+      // If a local interaction exists for same company+date, drop the sheet entry
       var byId = {};
       (this.interactions || []).forEach(function(i) { byId[i.id] = i; });
       local.forEach(function(i) { byId[i.id] = i; });
-      this.interactions = Object.keys(byId).map(function(k) { return byId[k]; });
+      var merged = Object.keys(byId).map(function(k) { return byId[k]; });
+      var localCdSet = {};
+      local.forEach(function(i) { localCdSet[(i.company || "") + "|" + (i.date || "")] = true; });
+      this.interactions = merged.filter(function(i) {
+        var cd = (i.company || "") + "|" + (i.date || "");
+        // Keep if it's a local entry, or if no local entry exists for same company+date
+        return local.indexOf(i) !== -1 || !localCdSet[cd];
+      });
     } else if (!this.interactions || !this.interactions.length) {
       this.interactions = [
         { id: "crm1", company: "Astro Digital", date: "2026-05-12", time: "10:30", type: "Email", subject: "Initial outreach", notes: "Sent introductory email about payload requirements. Awaiting response.", followUp: "2026-06-01", followUpDone: false },
@@ -1552,6 +1560,9 @@ const APP = {
       var items = self.interactions.filter(function(i) { return i.company === company; });
       if (!items.length) return null;
       items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
+      for (var k = 0; k < items.length; k++) {
+        if ((items[k].subject || "").trim() || (items[k].notes || "").trim()) return items[k];
+      }
       return items[0];
     }
 
