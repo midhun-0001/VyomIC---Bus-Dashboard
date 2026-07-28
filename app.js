@@ -675,7 +675,10 @@ const APP = {
     if (!this.selectedDashCompany) return;
     const list = this.el.detailCrmList;
     const empty = this.el.detailCrmEmpty;
-    const items = this.interactions.filter(i => i.company === this.selectedDashCompany);
+    const items = this.interactions.filter(i => {
+      if (i.company !== this.selectedDashCompany) return false;
+      return (i.subject || "").trim() || (i.notes || "").trim();
+    });
     items.sort((a, b) => {
       const d = (b.date || "").localeCompare(a.date || "");
       if (d !== 0) return d;
@@ -768,7 +771,10 @@ const APP = {
   },
 
   getLatestInteraction(company) {
-    const items = this.interactions.filter(i => i.company === company);
+    const items = this.interactions.filter(i => {
+      if (i.company !== company) return false;
+      return (i.subject || "").trim() || (i.notes || "").trim();
+    });
     if (!items.length) return null;
     items.sort((a, b) => {
       const d = (b.date || "").localeCompare(a.date || "");
@@ -785,7 +791,10 @@ const APP = {
       var k = this.stageOverrides[company];
       return { stage: labels[k] || k, key: k, color: colors[k] || "var(--color-text-muted)", overridden: true };
     }
-    var items = this.interactions.filter(function(i) { return i.company === company; });
+    var items = this.interactions.filter(function(i) {
+      if (i.company !== company) return false;
+      return (i.subject || "").trim() || (i.notes || "").trim();
+    });
     if (!items.length) return { stage: labels["new"], key: "new", color: colors["new"] };
     var count = items.length;
     var sorted = items.slice().sort(function(a, b) {
