@@ -55,6 +55,23 @@ function doPost(e) {
     if ((tab === 'interactions' || tab === 'all') && data.interactions) {
       writeSheet(ss, 'interactions', data.interactions);
     }
+    if (tab === 'deleteInteraction' && data.company) {
+      var sheet = ss.getSheetByName('interactions');
+      if (sheet) {
+        var intData = sheet.getDataRange().getValues();
+        var headers = intData[0];
+        var coIdx = headers.indexOf('company');
+        var idIdx = headers.indexOf('id');
+        var deleted = 0;
+        for (var r = intData.length - 1; r >= 1; r--) {
+          var match = false;
+          if (data.id && String(intData[r][idIdx] || '') === data.id) match = true;
+          if (!match && String(intData[r][coIdx] || '') === data.company) match = true;
+          if (match) { sheet.deleteRow(r + 1); deleted++; }
+        }
+        result.deleted = deleted;
+      }
+    }
   } catch (e) {
     result.success = false;
     result.error = e.message;
@@ -568,4 +585,33 @@ function setupInteractions() {
   }
 
   Logger.log('setupInteractions done — added ' + newRows.length + ' interactions');
+}
+
+// ── Delete stale interactions ────────────────────────────────────────────────
+
+/**
+ * Run from Apps Script editor to delete interactions matching company+date.
+ * Usage: deleteStaleInteraction('Loft Orbital', '2026-08-10');
+ * Leave date empty to delete ALL interactions for a company.
+ */
+function deleteStaleInteraction(company, date) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName('interactions');
+  if (!sheet) { Logger.log('No interactions sheet'); return; }
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) { Logger.log('No data'); return; }
+  var headers = data[0];
+  var coIdx = headers.indexOf('company');
+  var dateIdx = headers.indexOf('date');
+  var toDelete = [];
+  for (var r = data.length - 1; r >= 1; r--) {
+    var rowCo = String(data[r][coIdx] || '').trim();
+    var rowDate = String(data[r][dateIdx] || '').trim();
+    if (rowCo === company && (!date || rowDate === date)) {
+      toDelete.push(r + 1);
+      Logger.log('Found row ' + (r+1) + ': ' + rowCo + ' / ' + rowDate);
+    }
+  }
+  toDelete.forEach(function(r) { sheet.deleteRow(r); });
+  Logger.log('Deleted ' + toDelete.length + ' interaction(s) for ' + company);
 }
