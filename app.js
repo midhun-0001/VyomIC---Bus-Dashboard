@@ -305,6 +305,15 @@ function getRecommendation(score) {
   return { label: "Not Recommended", color: "#e74c3c" };
 }
 
+// ── Tracker constants ───────────────────────────────────────────────────────
+
+const PIPELINE_TYPES = ["Outreach", "Call", "Email", "Meeting", "Demo", "Proposal", "Negotiation", "Won", "Lost"];
+
+function daysBetween(a, b) {
+  var da = new Date(a); var db = new Date(b);
+  return Math.round((db - da) / (1000 * 60 * 60 * 24));
+}
+
 // ============================================================================
 // APPLICATION
 // ============================================================================
@@ -320,6 +329,7 @@ const APP = {
   compareVisible: null,
   compareMode: "compliance", // "compliance" | "specs"
   goStatus: {}, // { [company]: "go" | "nogo" }
+  trackerFilters: { country: "", go: "" },
 
   el: {},
 
@@ -520,6 +530,7 @@ const APP = {
         if (tab.dataset.tab === "compare") this.renderComparison();
         if (tab.dataset.tab === "specs") this.renderBusSpecs();
         if (tab.dataset.tab === "analysis") this.renderAnalysis();
+        if (tab.dataset.tab === "tracker") this.renderTracker();
       });
     });
 
@@ -1382,6 +1393,203 @@ const APP = {
 
     var el = document.getElementById("analysisBody");
     if (el) el.innerHTML = html;
+  },
+
+  // ========== TRACKER ==========
+
+  analyseCompany(company) {
+    var items = this.interactions.filter(function(i) {
+      if (i.company !== company) return false;
+      return (i.subject || "").trim() || (i.notes || "").trim();
+    });
+    var count = items.length;
+    items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
+
+    var detected = {};
+    var typeSet = {};
+    items.forEach(function(i) {
+      var t = i.type || "";
+      if (t) typeSet[t] = true;
+      var text = ((i.subject || "") + " " + (i.notes || "")).toLowerCase();
+      if (/nda|non-disclosure/.test(text)) detected.nda = true;
+      if (/eoi|expression of interest/.test(text)) detected.eoi = true;
+      if (/response|reply|replied|got back/.test(text)) detected.response = true;
+      if (/signed|executed|closed/.test(text)) detected.signed = true;
+      if (/meeting|met with/.test(text)) detected.meeting = true;
+      if (/demo|demonstration/.test(text)) detected.demo = true;
+      if (/proposal|quote|quotation/.test(text)) detected.proposal = true;
+      if (/negotiat/.test(text)) detected.negotiation = true;
+      if (/won|awarded|contract signed/.test(text)) detected.won = true;
+      if (/lost|declined|rejected|not selected/.test(text)) detected.lost = true;
+    });
+    Object.keys(typeSet).forEach(function(t) { detected[t.toLowerCase()] = true; });
+
+    var milestoneCount = 0;
+    for (var k in detected) { if (detected.hasOwnProperty(k)) milestoneCount++; }
+
+    var latest = items.length ? items[0] : null;
+    var daysSince = latest ? daysBetween(latest.date, new Date().toISOString().split("T")[0]) : 999;
+
+    var score = count * 8 + milestoneCount * 5;
+    if (daysSince <= 7) score += 15;
+    else if (daysSince <= 30) score += 8;
+    else if (daysSince <= 90) score += 3;
+    if (detected.nda && detected.signed) score += 20;
+    if (detected.eoi && detected.response) score += 20;
+    if (typeSet["Won"]) score = 100;
+    if (typeSet["Lost"]) score = 10;
+
+    return {
+      company: company,
+      count: count,
+      latest: latest,
+      daysSince: daysSince,
+      milestones: detected,
+      milestoneCount: milestoneCount,
+      score: Math.min(100, score)
+    };
+  },
+
+  renderTracker() {
+    var self = this;
+    var busMap = {};
+    this.buses.forEach(function(b) { if (!busMap[b.company]) busMap[b.company] = b; });
+    var companies = [];
+    var seen = {};
+    this.buses.forEach(function(b) {
+      if (!seen[b.company]) { seen[b.company] = true; companies.push(b.company); }
+    });
+    companies = companies.filter(function(c) { return self.goStatus[c] !== "nogo"; });
+
+    var countryEl = document.getElementById("trFilterCountry");
+    if (countryEl && countryEl.options.length <= 1) {
+      var countries = [];
+      var cs = {};
+      companies.forEach(function(c) {
+        var bus = busMap[c];
+        var co = bus ? bus.country : "";
+        if (co && !cs[co]) { cs[co] = true; countries.push(co); }
+      });
+      countries.sort();
+      countries.forEach(function(c) {
+        var o = document.createElement("option");
+        o.value = c; o.textContent = c; countryEl.appendChild(o);
+      });
+    }
+
+    var filterCountry = this.trackerFilters ? this.trackerFilters.country || "" : "";
+    var filterGo = this.trackerFilters ? this.trackerFilters.go || "" : "";
+    companies = companies.filter(function(c) {
+      if (filterCountry) {
+        var bus = busMap[c];
+        if (!bus || bus.country !== filterCountry) return false;
+      }
+      if (filterGo) {
+        if ((self.goStatus[c] || "go") !== filterGo) return false;
+      }
+      return true;
+    });
+
+    var analysed = companies.map(function(c) { return self.analyseCompany(c); });
+    analysed.sort(function(a, b) { return b.score - a.score || a.company.localeCompare(b.company); });
+
+    var h = '<table class="tr-sheet"><thead><tr>';
+    h += '<th class="tr-th tr-th-sticky">Company</th>';
+    h += '<th class="tr-th">Country</th>';
+    h += '<th class="tr-th">Ints</th>';
+    h += '<th class="tr-th">Last Contact</th>';
+    h += '<th class="tr-th">Type</th>';
+    h += '<th class="tr-th">Subject</th>';
+    h += '<th class="tr-th">Milestones</th>';
+    h += '<th class="tr-th">Score</th>';
+    h += '<th class="tr-th">Rank</th>';
+    h += '</tr></thead><tbody>';
+
+    analysed.forEach(function(r, idx) {
+      var esc = self.escapeHtml;
+      var c = r.company;
+      var bus = busMap[c];
+      var goCls = self.goStatus[c] === "nogo" ? " tr-row-nogo" : "";
+
+      var milestoneTags = "";
+      for (var mk in r.milestones) {
+        if (r.milestones.hasOwnProperty(mk) && r.milestones[mk]) {
+          milestoneTags += '<span class="tr-tag">' + esc(mk) + '</span> ';
+        }
+      }
+      if (!milestoneTags) milestoneTags = '<span class="tr-tag tr-tag-muted">—</span>';
+
+      var latestDate = r.latest ? (r.latest.date || "") : "";
+      var latestType = r.latest ? (r.latest.type || "") : "";
+      var latestSubj = r.latest ? (r.latest.subject || "") : "";
+      var scoreColor = r.score >= 70 ? "#27ae60" : r.score >= 40 ? "#f39c12" : "#e74c3c";
+
+      h += '<tr class="tr-row' + goCls + '">';
+      h += '<td class="tr-td tr-td-sticky"><span class="tr-cell-text">' + esc(c) + '</span></td>';
+      h += '<td class="tr-td">' + esc(bus ? bus.country || "" : "") + '</td>';
+      h += '<td class="tr-td tr-td-center"><span class="tr-count-badge">' + r.count + '</span></td>';
+      h += '<td class="tr-td"><input type="date" class="tr-cell-input" data-field="date" data-company="' + esc(c) + '" value="' + latestDate + '"></td>';
+      h += '<td class="tr-td"><select class="tr-cell-select tr-cell-select-sm" data-field="type" data-company="' + esc(c) + '">';
+      [""].concat(PIPELINE_TYPES).forEach(function(t) {
+        h += '<option value="' + t + '"' + (latestType === t ? ' selected' : '') + '>' + (t || '\u2014') + '</option>';
+      });
+      h += '</select></td>';
+      h += '<td class="tr-td"><input type="text" class="tr-cell-input tr-cell-wide" data-field="subject" data-company="' + esc(c) + '" value="' + esc(latestSubj) + '" placeholder="Subject..."></td>';
+      h += '<td class="tr-td tr-td-tags">' + milestoneTags + '</td>';
+      h += '<td class="tr-td tr-td-score" style="color:' + scoreColor + ';font-weight:700">' + r.score + '</td>';
+      h += '<td class="tr-td tr-td-center">#' + (idx + 1) + '</td>';
+      h += '</tr>';
+    });
+
+    h += '</tbody></table>';
+
+    var container = document.getElementById("trackerBody");
+    if (container) container.innerHTML = h;
+
+    if (countryEl) countryEl.onchange = function() {
+      if (!self.trackerFilters) self.trackerFilters = { country: "", go: "" };
+      self.trackerFilters.country = countryEl.value;
+      self.renderTracker();
+    };
+    var goEl = document.getElementById("trFilterGo");
+    if (goEl) goEl.onchange = function() {
+      if (!self.trackerFilters) self.trackerFilters = { country: "", go: "" };
+      self.trackerFilters.go = goEl.value;
+      self.renderTracker();
+    };
+
+    function bindField(selector, handler) {
+      container.querySelectorAll(selector).forEach(function(inp) {
+        inp.addEventListener("change", function() { handler(inp); self.renderTracker(); });
+      });
+    }
+
+    bindField('.tr-cell-input[data-field="date"]', function(inp) {
+      var items = self.interactions.filter(function(i) { return i.company === inp.dataset.company; });
+      if (items.length) {
+        items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
+        items[0].date = inp.value;
+        self.saveInteractions();
+      }
+    });
+
+    bindField('.tr-cell-select[data-field="type"]', function(inp) {
+      var items = self.interactions.filter(function(i) { return i.company === inp.dataset.company; });
+      if (items.length) {
+        items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
+        if (inp.value) { items[0].type = inp.value; }
+        self.saveInteractions();
+      }
+    });
+
+    bindField('.tr-cell-input[data-field="subject"]', function(inp) {
+      var items = self.interactions.filter(function(i) { return i.company === inp.dataset.company; });
+      if (items.length) {
+        items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
+        items[0].subject = inp.value;
+        self.saveInteractions();
+      }
+    });
   },
 
   // ========== THEME ==========

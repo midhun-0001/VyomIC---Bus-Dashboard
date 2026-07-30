@@ -51,6 +51,7 @@
         <button class="tab is-active" type="button" data-tab="dashboard">Dashboard</button>
         <button class="tab" type="button" data-tab="compare">Compare</button>
         <button class="tab" type="button" data-tab="analysis">Analysis</button>
+        <button class="tab" type="button" data-tab="tracker">Tracker</button>
       </nav>
 
       <p id="statusMessage" class="status-message" role="status" aria-live="polite"></p>
@@ -112,6 +113,25 @@
             </div>
           </div>
           <div id="analysisBody" class="analysis-body"></div>
+        </section>
+        <section id="trackerPanel" class="panel" aria-label="Tracker">
+          <div class="tr-header">
+            <div>
+              <p class="eyebrow">VYOMIC Interaction Tracker</p>
+              <h2>Tracker</h2>
+            </div>
+            <div class="tr-controls">
+              <div class="tr-filter-group">
+                <select id="trFilterCountry" class="tr-filter"><option value="">All Countries</option></select>
+                <select id="trFilterGo" class="tr-filter">
+                  <option value="">All Status</option>
+                  <option value="go">GO only</option>
+                  <option value="nogo">NO-GO only</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div id="trackerBody" class="tr-body"></div>
         </section>
       </main>
     </div>
