@@ -1502,7 +1502,6 @@ const APP = {
     h += '<th class="tr-th">Type</th>';
     h += '<th class="tr-th">Subject</th>';
     h += '<th class="tr-th">Milestones</th>';
-    h += '<th class="tr-th">S.No</th>';
     h += '</tr></thead><tbody>';
 
     analysed.forEach(function(r, idx) {
