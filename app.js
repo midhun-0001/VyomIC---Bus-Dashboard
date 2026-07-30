@@ -1494,6 +1494,7 @@ const APP = {
     analysed.sort(function(a, b) { return b.score - a.score || a.company.localeCompare(b.company); });
 
     var h = '<table class="tr-sheet"><thead><tr>';
+    h += '<th class="tr-th tr-th-sno">S.No</th>';
     h += '<th class="tr-th tr-th-sticky">Company</th>';
     h += '<th class="tr-th">Country</th>';
     h += '<th class="tr-th">Ints</th>';
@@ -1523,6 +1524,7 @@ const APP = {
       var latestSubj = r.latest ? (r.latest.subject || "") : "";
 
       h += '<tr class="tr-row' + goCls + '">';
+      h += '<td class="tr-td tr-td-center">' + (idx + 1) + '</td>';
       h += '<td class="tr-td tr-td-sticky"><span class="tr-cell-text">' + esc(c) + '</span></td>';
       h += '<td class="tr-td">' + esc(bus ? bus.country || "" : "") + '</td>';
       h += '<td class="tr-td tr-td-center"><span class="tr-count-badge">' + r.count + '</span></td>';
@@ -1534,7 +1536,6 @@ const APP = {
       h += '</select></td>';
       h += '<td class="tr-td"><input type="text" class="tr-cell-input tr-cell-wide" data-field="subject" data-company="' + esc(c) + '" value="' + esc(latestSubj) + '" placeholder="Subject..."></td>';
       h += '<td class="tr-td tr-td-tags">' + milestoneTags + '</td>';
-      h += '<td class="tr-td tr-td-center">#' + (idx + 1) + '</td>';
       h += '</tr>';
     });
 
