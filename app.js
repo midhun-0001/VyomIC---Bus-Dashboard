@@ -1501,8 +1501,7 @@ const APP = {
     h += '<th class="tr-th">Type</th>';
     h += '<th class="tr-th">Subject</th>';
     h += '<th class="tr-th">Milestones</th>';
-    h += '<th class="tr-th">Score</th>';
-    h += '<th class="tr-th">Rank</th>';
+    h += '<th class="tr-th">S.No</th>';
     h += '</tr></thead><tbody>';
 
     analysed.forEach(function(r, idx) {
@@ -1522,7 +1521,6 @@ const APP = {
       var latestDate = r.latest ? (r.latest.date || "") : "";
       var latestType = r.latest ? (r.latest.type || "") : "";
       var latestSubj = r.latest ? (r.latest.subject || "") : "";
-      var scoreColor = r.score >= 70 ? "#27ae60" : r.score >= 40 ? "#f39c12" : "#e74c3c";
 
       h += '<tr class="tr-row' + goCls + '">';
       h += '<td class="tr-td tr-td-sticky"><span class="tr-cell-text">' + esc(c) + '</span></td>';
@@ -1536,7 +1534,6 @@ const APP = {
       h += '</select></td>';
       h += '<td class="tr-td"><input type="text" class="tr-cell-input tr-cell-wide" data-field="subject" data-company="' + esc(c) + '" value="' + esc(latestSubj) + '" placeholder="Subject..."></td>';
       h += '<td class="tr-td tr-td-tags">' + milestoneTags + '</td>';
-      h += '<td class="tr-td tr-td-score" style="color:' + scoreColor + ';font-weight:700">' + r.score + '</td>';
       h += '<td class="tr-td tr-td-center">#' + (idx + 1) + '</td>';
       h += '</tr>';
     });
