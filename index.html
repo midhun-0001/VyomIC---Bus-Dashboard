@@ -51,7 +51,6 @@
         <button class="tab is-active" type="button" data-tab="dashboard">Dashboard</button>
         <button class="tab" type="button" data-tab="compare">Compare</button>
         <button class="tab" type="button" data-tab="analysis">Analysis</button>
-        <button class="tab" type="button" data-tab="timeline">Tracker</button>
       </nav>
 
       <p id="statusMessage" class="status-message" role="status" aria-live="polite"></p>
@@ -113,25 +112,6 @@
             </div>
           </div>
           <div id="analysisBody" class="analysis-body"></div>
-        </section>
-        <section id="timelinePanel" class="panel" aria-label="Tracker">
-          <div class="timeline-header">
-            <div>
-              <p class="eyebrow">VYOMIC Company Tracker</p>
-              <h2>Tracker</h2>
-            </div>
-            <div class="timeline-controls">
-              <div class="timeline-filter-group">
-                <select id="tlFilterCountry" class="tl-filter"><option value="">All Countries</option></select>
-                <select id="tlFilterGo" class="tl-filter">
-                  <option value="">All Status</option>
-                  <option value="go">GO only</option>
-                  <option value="nogo">NO-GO only</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div id="timelineBody" class="tl-sheet-body"></div>
         </section>
       </main>
     </div>

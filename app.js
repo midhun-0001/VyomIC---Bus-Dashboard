@@ -319,10 +319,7 @@ const APP = {
   selectedDashCompany: null,
   compareVisible: null,
   compareMode: "compliance", // "compliance" | "specs"
-  stageOverrides: {}, // { [company]: "lane key" }
-  stageLabels: { "new": "New (No Activity)", "1st": "1st Response", "2nd": "2nd Response", "3rd": "3rd+ Response", "nda": "NDA", "meeting": "Meeting", "eoi": "EOI", "tech": "Technical Discussion", "eval_started": "Evaluation Started", "eval_one": "Evaluation One", "eval_two": "Evaluation Two", "shortlisted": "Shortlisted", "selected": "Selected" },
   goStatus: {}, // { [company]: "go" | "nogo" }
-  timelineFilters: { country: "", go: "" },
 
   el: {},
 
@@ -434,9 +431,7 @@ const APP = {
     // Always load interactions & compliance from localStorage (merges GSheet data)
     this.loadInteractions();
     this.loadCompliance();
-    this.loadStageOverrides();
     this.loadGoStatus();
-    this.loadMilestoneLabels();
     if (!gsheetLoaded) {
       const hadCompliance = localStorage.getItem("satbus_compliance") !== null;
       if (!hadCompliance && !Object.keys(this.compliance).length) {
@@ -525,7 +520,6 @@ const APP = {
         if (tab.dataset.tab === "compare") this.renderComparison();
         if (tab.dataset.tab === "specs") this.renderBusSpecs();
         if (tab.dataset.tab === "analysis") this.renderAnalysis();
-        if (tab.dataset.tab === "timeline") this.renderTimeline();
       });
     });
 
@@ -784,75 +778,7 @@ const APP = {
     return items[0];
   },
 
-  getCompanyStage(company) {
-    var labels = this.stageLabels;
-    var colors = { "new": "var(--color-text-muted)", "1st": "#74b9ff", "2nd": "#a29bfe", "3rd": "#fd79a8", "nda": "#a29bfe", "meeting": "#00b894", "eoi": "#fdcb6e", "tech": "#e84393", "eval_started": "#fd79a8", "eval_one": "#e17055", "eval_two": "#d63031", "shortlisted": "#6c5ce7", "selected": "#00b894" };
-    if (this.stageOverrides[company]) {
-      var k = this.stageOverrides[company];
-      return { stage: labels[k] || k, key: k, color: colors[k] || "var(--color-text-muted)", overridden: true };
-    }
-    var items = this.interactions.filter(function(i) {
-      if (i.company !== company) return false;
-      return (i.subject || "").trim() || (i.notes || "").trim();
-    });
-    if (!items.length) return { stage: labels["new"], key: "new", color: colors["new"] };
-    var count = items.length;
-    var sorted = items.slice().sort(function(a, b) {
-      var d = (b.date || "").localeCompare(a.date || "");
-      if (d !== 0) return d;
-      return (b.time || "").localeCompare(a.time || "");
-    });
-    var latest = sorted[0];
-    var text = ((latest.subject || "") + " " + (latest.notes || "")).toLowerCase();
-    var type = (latest.type || "").toLowerCase();
-    if (type === "meeting" || text.indexOf("meeting") !== -1) return { stage: labels["meeting"], key: "meeting", color: colors["meeting"] };
-    if (text.indexOf("eoi") !== -1 || text.indexOf("expression of interest") !== -1) return { stage: labels["eoi"], key: "eoi", color: colors["eoi"] };
-    if (text.indexOf("nda") !== -1) return { stage: labels["nda"], key: "nda", color: colors["nda"] };
-    if (count >= 3) return { stage: labels["3rd"], key: "3rd", color: colors["3rd"] };
-    if (count === 2) return { stage: labels["2nd"], key: "2nd", color: colors["2nd"] };
-    if (count === 1) return { stage: labels["1st"], key: "1st", color: colors["1st"] };
-    return { stage: labels["new"], key: "new", color: colors["new"] };
-  },
-
-  setCompanyStage(company, key) {
-    if (key) {
-      this.stageOverrides[company] = key;
-    } else {
-      delete this.stageOverrides[company];
-    }
-    this.saveStageOverrides();
-  },
-
-  loadStageOverrides() {
-    var stored = localStorage.getItem("satbus_stages");
-    if (stored) {
-      try {
-        var parsed = JSON.parse(stored);
-        // Migrate old display-name format to new key format
-        var nameToKey = { "New": "new", "1st Response": "1st", "2nd Response": "2nd", "3rd+ Response": "3rd", "3rd Response": "3rd", "NDA": "nda", "Meeting": "meeting", "EOI": "eoi" };
-        this.stageOverrides = {};
-        Object.keys(parsed).forEach(function(c) {
-          var v = parsed[c];
-          this.stageOverrides[c] = nameToKey[v] || v;
-        }.bind(this));
-      } catch (_) { this.stageOverrides = {}; }
-    }
-    var labels = localStorage.getItem("satbus_stage_labels");
-    if (labels) {
-      try {
-        var parsed = JSON.parse(labels);
-        Object.keys(parsed).forEach(function(k) { if (parsed[k]) this.stageLabels[k] = parsed[k]; }.bind(this));
-      } catch (_) {}
-    }
-  },
-
-  saveStageOverrides() {
-    localStorage.setItem("satbus_stages", JSON.stringify(this.stageOverrides));
-  },
-
-  saveStageLabels() {
-    localStorage.setItem("satbus_stage_labels", JSON.stringify(this.stageLabels));
-  },
+  // ========== DASHBOARD ==========
 
   loadGoStatus() {
     var stored = localStorage.getItem("satbus_go_status");
@@ -1456,227 +1382,6 @@ const APP = {
 
     var el = document.getElementById("analysisBody");
     if (el) el.innerHTML = html;
-  },
-
-  // ========== TIMELINE (SHEET-STYLE EDITABLE TABLE) ==========
-
-  loadMilestoneLabels() {
-    var defaults = [
-      { key: "1st", label: "1st Contact" },
-      { key: "meeting", label: "Meeting" },
-      { key: "nda", label: "NDA" },
-      { key: "eoi", label: "EOI" },
-      { key: "tech", label: "Technical Discussion" },
-      { key: "eval_started", label: "Evaluation Started" },
-      { key: "eval_one", label: "Evaluation One" },
-      { key: "eval_two", label: "Evaluation Two" },
-      { key: "shortlisted", label: "Shortlisted" },
-      { key: "selected", label: "Selected" },
-    ];
-    var stored = localStorage.getItem("satbus_milestone_labels");
-    if (stored) {
-      try {
-        var parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length === 10) {
-          this.milestoneLabels = parsed;
-          return;
-        }
-      } catch (_) {}
-    }
-    this.milestoneLabels = defaults;
-  },
-
-  saveMilestoneLabels() {
-    localStorage.setItem("satbus_milestone_labels", JSON.stringify(this.milestoneLabels));
-  },
-
-  renderTimeline() {
-    var self = this;
-    var MS = this.milestoneLabels;
-    var COLORS = {
-      "1st": "#74b9ff", "meeting": "#00b894", "nda": "#a29bfe", "eoi": "#fdcb6e",
-      "tech": "#e84393", "eval_started": "#fd79a8", "eval_one": "#e17055",
-      "eval_two": "#d63031", "shortlisted": "#6c5ce7", "selected": "#00b894",
-      "new": "var(--color-text-muted)"
-    };
-    var TYPES = ["", "Email", "Meeting", "Call", "Follow-up", "Technical", "Note", "Contract"];
-
-    var busMap = {};
-    this.buses.forEach(function(b) { if (!busMap[b.company]) busMap[b.company] = b; });
-    var allCompanies = [];
-    var seen = {};
-    this.buses.forEach(function(b) { if (!seen[b.company]) { seen[b.company] = true; allCompanies.push(b.company); } });
-    allCompanies.sort();
-    allCompanies = allCompanies.filter(function(c) { return self.goStatus[c] !== "nogo"; });
-
-    var countries = [];
-    var countrySeen = {};
-    allCompanies.forEach(function(c) {
-      var bus = busMap[c];
-      var co = bus ? bus.country : "";
-      if (co && !countrySeen[co]) { countrySeen[co] = true; countries.push(co); }
-    });
-    countries.sort();
-    var countryEl = document.getElementById("tlFilterCountry");
-    if (countryEl && countryEl.options.length <= 1) {
-      countries.forEach(function(c) {
-        var o = document.createElement("option");
-        o.value = c;
-        o.textContent = c;
-        countryEl.appendChild(o);
-      });
-    }
-
-    var filtered = allCompanies.filter(function(c) {
-      if (self.timelineFilters.country) {
-        var bus = busMap[c];
-        if (!bus || bus.country !== self.timelineFilters.country) return false;
-      }
-      if (self.timelineFilters.go) {
-        if ((self.goStatus[c] || "go") !== self.timelineFilters.go) return false;
-      }
-      return true;
-    });
-
-    function detectStage(company) {
-      var items = self.interactions.filter(function(i) { return i.company === company; });
-      if (!items.length) return "new";
-      var blob = items.map(function(i) {
-        return ((i.type || "") + " " + (i.subject || "") + " " + (i.notes || "")).toLowerCase();
-      }).join(" ");
-
-      if (blob.indexOf("selected") !== -1 || blob.indexOf("awarded") !== -1 || blob.indexOf("contract signed") !== -1) return "selected";
-      if (blob.indexOf("shortlist") !== -1) return "shortlisted";
-      if (blob.indexOf("eval two") !== -1 || blob.indexOf("eval 2") !== -1 || blob.indexOf("second evaluation") !== -1) return "eval_two";
-      if (blob.indexOf("eval one") !== -1 || blob.indexOf("eval 1") !== -1 || blob.indexOf("first evaluation") !== -1) return "eval_one";
-      if (blob.indexOf("evaluation") !== -1 || blob.indexOf("review started") !== -1) return "eval_started";
-      if (blob.indexOf("technical") !== -1 || blob.indexOf("tech discussion") !== -1) return "tech";
-      if (blob.indexOf("eoi") !== -1 || blob.indexOf("expression of interest") !== -1) return "eoi";
-      if (blob.indexOf("nda") !== -1 || blob.indexOf("non-disclosure") !== -1) return "nda";
-      var hasMeeting = items.some(function(i) {
-        return (i.type || "").toLowerCase() === "meeting" || (i.subject || "").toLowerCase().indexOf("meeting") !== -1;
-      });
-      if (hasMeeting) return "meeting";
-      return "1st";
-    }
-
-    function msIndex(key) {
-      for (var i = 0; i < MS.length; i++) { if (MS[i].key === key) return i; }
-      return -1;
-    }
-
-    function latestOf(company) {
-      var items = self.interactions.filter(function(i) { return i.company === company; });
-      if (!items.length) return null;
-      items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
-      for (var k = 0; k < items.length; k++) {
-        if ((items[k].subject || "").trim() || (items[k].notes || "").trim()) return items[k];
-      }
-      return items[0];
-    }
-
-    var rowData = filtered.map(function(c) {
-      var override = self.stageOverrides[c] || "";
-      var auto = detectStage(c);
-      var stage = override || auto;
-      var idx = msIndex(stage);
-      var pct = idx >= 0 ? Math.round(((idx + 1) / MS.length) * 100) : 0;
-      var latest = latestOf(c);
-      return { company: c, bus: busMap[c], override: override, auto: auto, stage: stage, idx: idx, pct: pct, latest: latest };
-    });
-    rowData.sort(function(a, b) { return b.idx - a.idx || a.company.localeCompare(b.company); });
-
-    var h = '<table class="tl-sheet"><thead><tr>';
-    h += '<th class="tl-th tl-th-sticky">Company</th>';
-    h += '<th class="tl-th">Country</th>';
-    h += '<th class="tl-th">Stage</th>';
-    h += '<th class="tl-th">Last Contact</th>';
-    h += '<th class="tl-th">Type</th>';
-    h += '<th class="tl-th">Subject</th>';
-    h += '<th class="tl-th">Progress</th>';
-    h += '</tr></thead><tbody>';
-
-    rowData.forEach(function(r) {
-      var esc = self.escapeHtml;
-      var c = r.company;
-      var bus = r.bus;
-      var color = COLORS[r.stage] || COLORS["new"];
-      var goCls = self.goStatus[c] === "nogo" ? " tl-row-nogo" : "";
-      var latestDate = r.latest ? (r.latest.date || "") : "";
-      var latestType = r.latest ? (r.latest.type || "") : "";
-      var latestSubj = r.latest ? (r.latest.subject || "") : "";
-
-      h += '<tr class="tl-row' + goCls + '">';
-      h += '<td class="tl-td tl-td-sticky"><span class="tl-cell-text">' + esc(c) + '</span></td>';
-      h += '<td class="tl-td"><span class="tl-cell-text">' + esc(bus ? bus.country || "" : "") + '</span></td>';
-
-      h += '<td class="tl-td tl-td-stage"><select class="tl-cell-select" data-field="stage" data-company="' + esc(c) + '">';
-      h += '<option value="">Auto (' + esc(MS[msIndex(r.auto)] ? MS[msIndex(r.auto)].label : "New") + ')</option>';
-      MS.forEach(function(m) {
-        h += '<option value="' + m.key + '"' + (r.override === m.key ? ' selected' : '') + '>' + esc(m.label) + '</option>';
-      });
-      h += '</select><span class="tl-stage-dot" style="background:' + color + '"></span></td>';
-
-      h += '<td class="tl-td"><input type="date" class="tl-cell-input" data-field="date" data-company="' + esc(c) + '" value="' + latestDate + '"></td>';
-
-      h += '<td class="tl-td"><select class="tl-cell-select tl-cell-select-sm" data-field="type" data-company="' + esc(c) + '">';
-      TYPES.forEach(function(t) {
-        h += '<option value="' + t + '"' + (latestType === t ? ' selected' : '') + '>' + (t || '\u2014') + '</option>';
-      });
-      h += '</select></td>';
-
-      h += '<td class="tl-td"><input type="text" class="tl-cell-input tl-cell-wide" data-field="subject" data-company="' + esc(c) + '" value="' + esc(latestSubj) + '" placeholder="Subject..."></td>';
-
-      h += '<td class="tl-td tl-td-progress"><div class="tl-mini-bar"><div class="tl-mini-fill" style="width:' + r.pct + '%;background:' + color + '"></div></div><span class="tl-pct-label">' + (r.pct > 0 ? r.pct + "%" : "\u2014") + '</span></td>';
-
-      h += '</tr>';
-    });
-
-    h += '</tbody></table>';
-
-    var el = document.getElementById("timelineBody");
-    if (el) el.innerHTML = h;
-
-    var goEl = document.getElementById("tlFilterGo");
-    if (countryEl) countryEl.onchange = function() { self.timelineFilters.country = countryEl.value; self.renderTimeline(); };
-    if (goEl) goEl.onchange = function() { self.timelineFilters.go = goEl.value; self.renderTimeline(); };
-
-    function bindField(selector, handler) {
-      el.querySelectorAll(selector).forEach(function(inp) {
-        inp.addEventListener("change", function() { handler(inp); self.renderTimeline(); });
-      });
-    }
-
-    bindField('.tl-cell-select[data-field="stage"]', function(inp) {
-      self.setCompanyStage(inp.dataset.company, inp.value);
-    });
-
-    bindField('.tl-cell-input[data-field="date"]', function(inp) {
-      var items = self.interactions.filter(function(i) { return i.company === inp.dataset.company; });
-      if (items.length) {
-        items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
-        items[0].date = inp.value;
-        self.saveInteractions();
-      }
-    });
-
-    bindField('.tl-cell-select[data-field="type"]', function(inp) {
-      var items = self.interactions.filter(function(i) { return i.company === inp.dataset.company; });
-      if (items.length) {
-        items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
-        items[0].type = inp.value;
-        self.saveInteractions();
-      }
-    });
-
-    bindField('.tl-cell-input[data-field="subject"]', function(inp) {
-      var items = self.interactions.filter(function(i) { return i.company === inp.dataset.company; });
-      if (items.length) {
-        items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
-        items[0].subject = inp.value;
-        self.saveInteractions();
-      }
-    });
   },
 
   // ========== THEME ==========
