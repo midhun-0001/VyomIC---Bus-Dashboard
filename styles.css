@@ -2249,6 +2249,33 @@ main {
   flex-shrink: 0;
 }
 
+.dash-pipeline-summary {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+.dash-pipeline-header h3 { margin: 0 0 var(--spacing-sm); font-size: 0.95rem; }
+.dash-pipeline-row {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+  font-size: 0.9rem;
+}
+.dash-pipeline-stage { font-weight: 700; }
+.dash-pipeline-status {
+  background: var(--color-surface-alt);
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+}
+.dash-pipeline-score {
+  margin-left: auto;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
 .dash-bus-name-input {
   font-size: inherit;
   font-family: inherit;

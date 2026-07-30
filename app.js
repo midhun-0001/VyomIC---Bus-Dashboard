@@ -305,6 +305,23 @@ function getRecommendation(score) {
   return { label: "Not Recommended", color: "#e74c3c" };
 }
 
+// ── Pipeline tracking constants ─────────────────────────────────────────────
+
+const PIPELINE_TYPES = ["Outreach", "Call", "Email", "Meeting", "Demo", "Proposal", "Negotiation", "Won", "Lost"];
+
+const TYPE_STAGE_MAP = {
+  "Outreach": 0, "Call": 1, "Email": 1, "Meeting": 2,
+  "Demo": 2, "Proposal": 3, "Negotiation": 4, "Won": 5, "Lost": 5
+};
+
+const STAGE_LABELS = ["Prospect", "Contacted", "Engaged", "Proposal", "Negotiation"];
+const STAGE_COLORS = ["#95a5a6", "#74b9ff", "#00b894", "#fdcb6e", "#e17055"];
+
+function daysBetween(a, b) {
+  var da = new Date(a); var db = new Date(b);
+  return Math.round((db - da) / (1000 * 60 * 60 * 24));
+}
+
 // ============================================================================
 // APPLICATION
 // ============================================================================
@@ -322,6 +339,8 @@ const APP = {
   stageOverrides: {}, // { [company]: "lane key" }
   stageLabels: { "new": "New (No Activity)", "1st": "1st Response", "2nd": "2nd Response", "3rd": "3rd+ Response", "nda": "NDA", "meeting": "Meeting", "eoi": "EOI", "tech": "Technical Discussion", "eval_started": "Evaluation Started", "eval_one": "Evaluation One", "eval_two": "Evaluation Two", "shortlisted": "Shortlisted", "selected": "Selected" },
   goStatus: {}, // { [company]: "go" | "nogo" }
+  companyStages: {}, // { [company]: stageIndex 0-4 }
+  companyStatus: {}, // { [company]: "Active" | "Won" | "Lost" }
   timelineFilters: { country: "", go: "" },
 
   el: {},
@@ -436,6 +455,8 @@ const APP = {
     this.loadCompliance();
     this.loadStageOverrides();
     this.loadGoStatus();
+    this.loadCompanyStages();
+    this.loadCompanyStatus();
     this.loadMilestoneLabels();
     if (!gsheetLoaded) {
       const hadCompliance = localStorage.getItem("satbus_compliance") !== null;
@@ -577,6 +598,7 @@ const APP = {
     localStorage.setItem("satbus_crm", JSON.stringify(this.interactions));
     this.gsheetPost('interactions', { interactions: this.interactions });
     if (this.selectedDashCompany) this.renderCompanyDetail(this.selectedDashCompany);
+    this.renderDashCompanyList();
   },
 
   openInteractionModal() {
@@ -657,6 +679,7 @@ const APP = {
         followUpDone: this.el.intFollowUpDone.checked
       });
     }
+    this.updateCompanyStageAndStatus(company, type);
     this.saveInteractions();
     this.closeInteractionModal();
     this.setStatus("Interaction saved", "success");
@@ -875,6 +898,79 @@ const APP = {
     this.renderDashCompanyList();
   },
 
+  // ── Pipeline tracking ──────────────────────────────────────────────────────
+
+  loadCompanyStages() {
+    var stored = localStorage.getItem("satbus_pipeline_stages");
+    if (stored) {
+      try { this.companyStages = JSON.parse(stored); } catch (_) { this.companyStages = {}; }
+    }
+  },
+
+  saveCompanyStages() {
+    localStorage.setItem("satbus_pipeline_stages", JSON.stringify(this.companyStages));
+  },
+
+  loadCompanyStatus() {
+    var stored = localStorage.getItem("satbus_pipeline_status");
+    if (stored) {
+      try { this.companyStatus = JSON.parse(stored); } catch (_) { this.companyStatus = {}; }
+    }
+  },
+
+  saveCompanyStatus() {
+    localStorage.setItem("satbus_pipeline_status", JSON.stringify(this.companyStatus));
+  },
+
+  computeAlignmentScore(company) {
+    var status = this.companyStatus[company] || "Active";
+    if (status === "Won") return 100;
+    if (status === "Lost") return 15;
+    var stageIdx = this.companyStages[company] !== undefined ? this.companyStages[company] : 0;
+    var items = this.interactions.filter(function(i) {
+      if (i.company !== company) return false;
+      return (i.subject || "").trim() || (i.notes || "").trim();
+    });
+    if (!items.length) return 0;
+    items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
+    var latest = items[0];
+    var daysSince = daysBetween(latest.date, new Date().toISOString().split("T")[0]);
+    var base = (stageIdx / 4) * 70;
+    var recencyBonus = Math.max(0, 30 - daysSince * 2);
+    return Math.min(100, Math.round(base + recencyBonus));
+  },
+
+  getPipelineStage(company) {
+    var status = this.companyStatus[company] || "Active";
+    if (status === "Won") return { label: "Won", index: 5, color: "#27ae60" };
+    if (status === "Lost") return { label: "Lost", index: 5, color: "#e74c3c" };
+    var idx = this.companyStages[company] !== undefined ? this.companyStages[company] : 0;
+    return { label: STAGE_LABELS[idx], index: idx, color: STAGE_COLORS[idx] };
+  },
+
+  updateCompanyStageAndStatus(company, type) {
+    var mapped = TYPE_STAGE_MAP[type];
+    if (mapped === undefined) mapped = 0;
+    if (type === "Won") {
+      this.companyStatus[company] = "Won";
+      this.saveCompanyStatus();
+      return;
+    }
+    if (type === "Lost") {
+      this.companyStatus[company] = "Lost";
+      this.saveCompanyStatus();
+      return;
+    }
+    if (this.companyStatus[company] === "Lost") {
+      this.companyStatus[company] = "Active";
+    }
+    this.companyStatus[company] = this.companyStatus[company] || "Active";
+    var current = this.companyStages[company] !== undefined ? this.companyStages[company] : 0;
+    this.companyStages[company] = Math.max(current, mapped);
+    this.saveCompanyStages();
+    this.saveCompanyStatus();
+  },
+
   showDashCompanyList() {
     this.selectedDashCompany = null;
     document.getElementById("dashCompanyList").hidden = false;
@@ -886,17 +982,22 @@ const APP = {
     const query = (this.el.dashSearch ? this.el.dashSearch.value.trim().toLowerCase() : "");
     const busMap = {};
     this.buses.forEach(b => { if (!busMap[b.company]) busMap[b.company] = b; });
-    const companies = [...new Set(this.buses.map(b => b.company))].sort().filter(c => {
+    const self = this;
+    const companies = [...new Set(this.buses.map(b => b.company))].filter(c => {
       if (!query) return true;
       const bus = busMap[c];
       if (!bus) return false;
       return (c + " " + (bus.platform || "") + " " + (bus.country || "")).toLowerCase().indexOf(query) !== -1;
+    }).sort(function(a, b) {
+      return self.computeAlignmentScore(b) - self.computeAlignmentScore(a);
     });
     this.el.dashCards.innerHTML = companies.map(c => {
       const bus = this.getCompanyBuses(c)[0];
       if (!bus) return "";
       const score = this.getComplianceScore(c, bus.platform);
       const pct = Math.round(score.passed / score.total * 100);
+      const alignScore = this.computeAlignmentScore(c);
+      const stage = this.getPipelineStage(c);
       const latest = this.getLatestInteraction(c);
       const latestHtml = latest
         ? `<span class="dash-latest">Latest: ${latest.type} — ${latest.subject}</span>`
@@ -915,6 +1016,14 @@ const APP = {
           </div>
         </div>
         <div class="dash-stats">
+          <div class="dash-stat">
+            <span class="dash-stat-val" style="color:${stage.color}">${stage.label}</span>
+            <span class="dash-stat-lbl">Pipeline stage</span>
+          </div>
+          <div class="dash-stat">
+            <span class="dash-stat-val">${alignScore}%</span>
+            <span class="dash-stat-lbl">Alignment score</span>
+          </div>
           <div class="dash-stat">
             <span class="dash-stat-val">${score.passed}/${score.total}</span>
             <span class="dash-stat-lbl">Compliance passed</span>
@@ -997,6 +1106,14 @@ const APP = {
           </div>
         </div>
         <div class="dash-detail-right">
+          <div class="dash-pipeline-summary">
+            <div class="dash-pipeline-header"><h3>Pipeline</h3></div>
+            <div class="dash-pipeline-row">
+              <span class="dash-pipeline-stage" style="color:${this.getPipelineStage(company).color}">${this.getPipelineStage(company).label}</span>
+              <span class="dash-pipeline-status">${this.companyStatus[company] || "Active"}</span>
+              <span class="dash-pipeline-score">${this.computeAlignmentScore(company)}%</span>
+            </div>
+          </div>
           <div class="dash-crm-section">
             <div class="dash-crm-header">
               <h3>VYOMIC Interaction History</h3>
@@ -1499,7 +1616,7 @@ const APP = {
       "eval_two": "#d63031", "shortlisted": "#6c5ce7", "selected": "#00b894",
       "new": "var(--color-text-muted)"
     };
-    var TYPES = ["", "Email", "Meeting", "Call", "Follow-up", "Technical", "Note", "Contract"];
+    var TYPES = [""].concat(PIPELINE_TYPES);
 
     var busMap = {};
     this.buses.forEach(function(b) { if (!busMap[b.company]) busMap[b.company] = b; });
