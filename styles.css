@@ -2334,22 +2334,23 @@ main {
 }
 
 .dash-remark-area {
-  width: 140px;
-  max-width: 140px;
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: 100%;
   margin-top: var(--spacing-xs);
-  margin-left: auto;
-  padding: 2px 6px;
+  margin-left: 0;
+  padding: 6px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 0.7rem;
-  resize: none;
-  min-height: 1.3rem;
-  max-height: 2.2rem;
+  font-size: 0.8rem;
+  resize: vertical;
+  min-height: 2.4rem;
+  max-height: 14rem;
   overflow-y: auto;
   transition: border-color 0.15s;
-  line-height: 1.2;
+  line-height: 1.35;
   white-space: normal;
   word-break: break-word;
 }

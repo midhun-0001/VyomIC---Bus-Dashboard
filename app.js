@@ -991,12 +991,14 @@ const APP = {
       });
     });
     this.el.dashDetailBody.querySelectorAll(".dash-remark-area").forEach(ta => {
+      this.autoGrowTextarea(ta);
       ta.addEventListener("input", e => {
         const row = e.target.closest(".dash-compliance-row");
         const key = row.dataset.key;
         const qi = parseInt(row.dataset.qi);
         this.setComplianceRemark(key, qi, e.target.value);
         e.target.classList.toggle("has-remark", e.target.value.trim() !== "");
+        this.autoGrowTextarea(e.target);
       });
     });
     this.el.dashDetailBody.querySelectorAll(".dash-bus-name-input").forEach(inp => {
@@ -1030,6 +1032,11 @@ const APP = {
     if (!this.compliance[key]) this.compliance[key] = {};
     this.compliance[key][qi] = val;
     this.saveCompliance();
+  },
+
+  autoGrowTextarea(el) {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
   },
 
   setComplianceRemark(key, qi, text) {
