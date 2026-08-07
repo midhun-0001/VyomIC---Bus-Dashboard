@@ -2346,8 +2346,8 @@ main {
   color: var(--color-text);
   font-size: 0.8rem;
   resize: vertical;
-  min-height: 2.4rem;
-  max-height: 14rem;
+  min-height: 4rem;
+  max-height: 18rem;
   overflow-y: auto;
   transition: border-color 0.15s;
   line-height: 1.35;
