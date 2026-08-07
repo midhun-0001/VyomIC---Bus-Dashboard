@@ -1814,6 +1814,7 @@ main {
 
 .dash-q-text {
   font-size: 0.82rem;
+  font-weight: 700;
   color: var(--color-text);
   flex: 1;
 }
