@@ -1510,7 +1510,6 @@ const APP = {
     h += '<th class="tr-th">Last Contact</th>';
     h += '<th class="tr-th">Type</th>';
     h += '<th class="tr-th">Subject</th>';
-    h += '<th class="tr-th">Milestones</th>';
     h += '</tr></thead><tbody>';
 
     analysed.forEach(function(r, idx) {
@@ -1518,14 +1517,6 @@ const APP = {
       var c = r.company;
       var bus = busMap[c];
       var goCls = self.goStatus[c] === "nogo" ? " tr-row-nogo" : "";
-
-      var milestoneTags = "";
-      for (var mk in r.milestones) {
-        if (r.milestones.hasOwnProperty(mk) && r.milestones[mk]) {
-          milestoneTags += '<span class="tr-tag">' + esc(mk) + '</span> ';
-        }
-      }
-      if (!milestoneTags) milestoneTags = '<span class="tr-tag tr-tag-muted">—</span>';
 
       var latestDate = r.latest ? (r.latest.date || "") : "";
       var latestType = r.latest ? (r.latest.type || "") : "";
@@ -1536,14 +1527,13 @@ const APP = {
       h += '<td class="tr-td tr-td-sticky"><span class="tr-cell-text">' + esc(c) + '</span></td>';
       h += '<td class="tr-td">' + esc(bus ? bus.country || "" : "") + '</td>';
       h += '<td class="tr-td tr-td-center"><span class="tr-count-badge">' + r.count + '</span></td>';
-      h += '<td class="tr-td"><input type="date" class="tr-cell-input" data-field="date" data-company="' + esc(c) + '" value="' + latestDate + '"></td>';
+      h += '<td class="tr-td">' + esc(latestDate) + '</td>';
       h += '<td class="tr-td"><select class="tr-cell-select tr-cell-select-sm" data-field="type" data-company="' + esc(c) + '">';
       [""].concat(PIPELINE_TYPES).forEach(function(t) {
         h += '<option value="' + t + '"' + (latestType === t ? ' selected' : '') + '>' + (t || '\u2014') + '</option>';
       });
       h += '</select></td>';
       h += '<td class="tr-td"><input type="text" class="tr-cell-input tr-cell-wide" data-field="subject" data-company="' + esc(c) + '" value="' + esc(latestSubj) + '" placeholder="Subject..."></td>';
-      h += '<td class="tr-td tr-td-tags">' + milestoneTags + '</td>';
       h += '</tr>';
     });
 
@@ -1569,15 +1559,6 @@ const APP = {
         inp.addEventListener("change", function() { handler(inp); self.renderTracker(); });
       });
     }
-
-    bindField('.tr-cell-input[data-field="date"]', function(inp) {
-      var items = self.interactions.filter(function(i) { return i.company === inp.dataset.company; });
-      if (items.length) {
-        items.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
-        items[0].date = inp.value;
-        self.saveInteractions();
-      }
-    });
 
     bindField('.tr-cell-select[data-field="type"]', function(inp) {
       var items = self.interactions.filter(function(i) { return i.company === inp.dataset.company; });
