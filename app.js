@@ -393,6 +393,7 @@ const APP = {
     }
     if (j.compliance) {
       this.compliance = j.compliance;
+      localStorage.setItem("satbus_compliance", JSON.stringify({ _v: 2, d: this.compliance }));
       changed = true;
     } else {
       this.compliance = this.compliance || {};
@@ -740,6 +741,7 @@ const APP = {
   // ========== DASHBOARD ==========
 
   loadCompliance() {
+    if (this.compliance && Object.keys(this.compliance).length) return;
     const raw = localStorage.getItem("satbus_compliance");
     if (raw) {
       try {
