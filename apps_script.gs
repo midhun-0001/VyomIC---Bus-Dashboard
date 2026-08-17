@@ -113,24 +113,49 @@ function readSheet(ss, name) {
 function normalizeHeader_(header) {
   var map = {
     "company": "company", "country": "country", "platform": "platform",
-    "mass": "platformMass", "volume": "platformVolume",
+    "mass": "platformMass", "mass (oap)": "platformMass",
+    "platformmass": "platformMass", "platform mass": "platformMass",
+    "platform_mass": "platformMass",
+    "volume": "platformVolume", "volume (oap)": "platformVolume",
+    "platformvolume": "platformVolume", "platform volume": "platformVolume",
+    "platform_volume": "platformVolume",
     "power": "payloadPower", "power (oap)": "payloadPower",
-    "payload mass": "payloadMass", "payload volume": "payloadVolume",
+    "payloadpower": "payloadPower", "payload power": "payloadPower",
+    "payload_power": "payloadPower",
+    "payload mass": "payloadMass", "payloadmass": "payloadMass",
+    "payload_mass": "payloadMass",
+    "payload volume": "payloadVolume", "payloadvolume": "payloadVolume",
+    "payload_volume": "payloadVolume",
     "orbit": "orbit", "lifetime": "lifetime",
     "pointing acc": "pointingAcc", "pointing accuracy": "pointingAcc",
+    "pointingacc": "pointingAcc", "pointing_acc": "pointingAcc",
     "pointing stability": "pointingStability",
+    "pointingstability": "pointingStability", "pointing_stability": "pointingStability",
     "pointing knowledge": "pointingKnowledge",
+    "pointingknowledge": "pointingKnowledge", "pointing_knowledge": "pointingKnowledge",
     "position knowledge": "positionKnowledge",
+    "positionknowledge": "positionKnowledge", "position_knowledge": "positionKnowledge",
     "pointing control": "pointingControl",
+    "pointingcontrol": "pointingControl", "pointing_control": "pointingControl",
     "slewing": "slewing", "propulsion": "propulsion",
-    "data interface": "dataInterface", "encryption": "encryption",
-    "downlink": "downlink", "tc/tm": "tcTm",
+    "data interface": "dataInterface", "datainterface": "dataInterface",
+    "data_interface": "dataInterface",
+    "encryption": "encryption", "downlink": "downlink",
+    "tc/tm": "tcTm", "tctm": "tcTm", "tc_tm": "tcTm",
     "voltage": "powerVoltage", "voltage / power ava": "powerVoltage",
+    "powervoltage": "powerVoltage", "power voltage": "powerVoltage",
+    "power_voltage": "powerVoltage",
     "rideshare adp": "rideshare", "rideshare": "rideshare",
-    "solar array": "solarArray", "storage": "storage",
-    "lead time": "leadTime", "cost": "cost",
+    "solar array": "solarArray", "solararray": "solarArray",
+    "solar_array": "solarArray",
+    "storage": "storage",
+    "lead time": "leadTime", "leadtime": "leadTime",
+    "lead_time": "leadTime",
+    "cost": "cost",
     "data sheet": "datasheet", "datasheet": "datasheet",
-    "heritage": "heritage", "remarks": "remarks"
+    "data_sheet": "datasheet",
+    "heritage": "heritage", "remarks": "remarks",
+    "contacted": "contacted", "linkedin": "linkedin"
   };
   var key = String(header).toLowerCase().trim();
   if (map[key]) return map[key];
@@ -140,14 +165,30 @@ function normalizeHeader_(header) {
 
 function writeSheet(ss, name, data) {
   if (!Array.isArray(data) || !data.length) return;
-  const headers = Object.keys(data[0]);
-  const sheet = ensureSheet_(ss, name, headers);
-  sheet.clearContents();
-  const rows = [headers];
-  data.forEach(item => {
-    rows.push(headers.map(h => item[h] !== undefined ? item[h] : ''));
+  const stdHeaders = [
+    "company", "country", "platform", "Platform Mass", "Platform Volume",
+    "Payload Power", "Payload Mass", "Payload Volume", "orbit", "lifetime",
+    "pointing acc", "pointing stability", "pointing knowledge", "position knowledge",
+    "pointing control", "slewing", "propulsion", "data interface", "encryption",
+    "downlink", "tc/tm", "voltage", "rideshare", "solar array", "storage",
+    "lead time", "cost", "datasheet", "heritage", "remarks", "contacted", "linkedin"
+  ];
+  const keyMap = {};
+  stdHeaders.forEach(function(h) {
+    var n = normalizeHeader_(h);
+    keyMap[n] = h;
   });
-  const range = sheet.getRange(1, 1, rows.length, headers.length);
+  const sheet = ensureSheet_(ss, name, stdHeaders);
+  sheet.clearContents();
+  const rows = [stdHeaders];
+  data.forEach(item => {
+    rows.push(stdHeaders.map(h => {
+      var k = normalizeHeader_(h);
+      var val = item[k] !== undefined ? item[k] : (item[h] !== undefined ? item[h] : '');
+      return val;
+    }));
+  });
+  const range = sheet.getRange(1, 1, rows.length, stdHeaders.length);
   range.setValues(rows);
 }
 
