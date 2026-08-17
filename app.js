@@ -85,7 +85,7 @@ const BUILTIN_DATA = [
 ];
 
 // Paste your Google Apps Script Web App URL here (or leave empty to use localStorage only)
-const GSHEET_URL = 'https://script.google.com/a/macros/vyomic.space/s/AKfycbwMPDibe-2NeBaL7ZJSjLOUKChzcqNJeAqFKvJFGyEtwpHPECgUcR7FPj40ABo9eSv5/exec';
+const GSHEET_URL = 'https://script.google.com/macros/s/AKfycbySQwi7DqCgWdDFECwIqZ8g3pkpRdvWrZay6KTCFOWtkh4XFqkaJzu-g4A0SifcYk0n/exec';
 const COMPANY_COUNTRY_MAP = {
   "Glavkosmos": "Russia",
   "Exobotics": "UK"
